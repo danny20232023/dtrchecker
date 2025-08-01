@@ -59,9 +59,9 @@ if ($requestMethod === 'GET') {
         if ($apiPath === '/api/users') {
             // API to get all users (for login validation)
             try {
-                // IMPORTANT: Adjust table and column names (T_USER, USERID, BADGENUMBER, NAME, PASSWORD, DEFAULTDEPTID, PHOTO)
+                // IMPORTANT: Adjust table and column names (USERINFO, USERID, BADGENUMBER, NAME, PASSWORD, DEFAULTDEPTID, PHOTO)
                 // to match your actual MSSQL schema.
-                $sql = "SELECT USERID, BADGENUMBER, NAME, PASSWORD, DEFAULTDEPTID, PHOTO FROM T_USER";
+                $sql = "SELECT USERID, BADGENUMBER, NAME, PASSWORD, DEFAULTDEPTID, PHOTO FROM USERINFO";
                 $stmt = sqlsrv_query($conn, $sql);
 
                 if ($stmt === false) {
