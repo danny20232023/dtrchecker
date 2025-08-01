@@ -5,7 +5,7 @@ run = "npm run start"
 channel = "stable-25_05"
 
 [deployment]
-run = ["sh", "-c", "npm run start"]
+run = ["sh", "-c", "php -S 0.0.0.0:5000 index.php"]
 
 [workflows]
 runButton = "Start Frontend"
