@@ -1,20 +1,44 @@
-
 <?php
 // dbConfig.php
 // This file contains the configuration for connecting to an MSSQL Server using PHP's SQLSRV extension.
 
+// Load environment variables if .env file exists
+if (file_exists(__DIR__ . '/../.env')) {
+    $lines = file(__DIR__ . '/../.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (strpos(trim($line), '#') === 0) continue;
+        list($name, $value) = explode('=', $line, 2);
+        $name = trim($name);
+        $value = trim($value);
+        if (!array_key_exists($name, $_SERVER) && !array_key_exists($name, $_ENV)) {
+            putenv(sprintf('%s=%s', $name, $value));
+            $_ENV[$name] = $value;
+            $_SERVER[$name] = $value;
+        }
+    }
+}
+
+// Helper function to get environment variables
+function env($key, $default = null) {
+    $value = getenv($key);
+    if ($value === false) {
+        return $default;
+    }
+
+    // Convert string booleans to actual booleans
+    if (strtolower($value) === 'true') return true;
+    if (strtolower($value) === 'false') return false;
+
+    return $value;
+}
+
 $mssqlConfig = [
-    'server' => '192.168.11.16', // e.g., 'localhost', '192.168.1.100', or a cloud SQL instance address
-    'database' => 'ZKBio5',     // The name of your database
-    'user' => 'sa',              // Your database username
-    'password' => '1t@information',      // Your database password
+    'server' => env('DB_HOST', '192.168.11.16'),
+    'database' => env('DB_DATABASE', 'ZKBio5'),
+    'user' => env('DB_USERNAME', 'sa'),
+    'password' => env('DB_PASSWORD', '1t@information'),
     'options' => [
-        'encrypt' => false,                  // Set to true for Azure SQL Database, false for local SQL Server
-        'TrustServerCertificate' => true    // Change to false for production environments with valid SSL certs
+        'encrypt' => env('DB_ENCRYPT', false),
+        'TrustServerCertificate' => env('DB_TRUST_SERVER_CERTIFICATE', true)
     ],
-    // PHP's SQLSRV driver doesn't use a 'pool' parameter in the same way Node.js 'mssql' does.
-    // Connection pooling is often managed by the web server (e.g., IIS) or PHP-FPM.
 ];
-
-// No explicit export needed for PHP, as it's included using require_once
-

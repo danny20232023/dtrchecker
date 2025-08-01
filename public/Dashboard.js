@@ -5,9 +5,9 @@ import { PrintPreview } from './PrintPreview.js';
 import { mockDepartments, mockSchClass, mockCheckinout } from './mockData.js';
 import { toDateString, parseTime } from './helpers.js';
 
-// Define your API base URL.
-// It assumes your Laragon project folder is 'dtrchecker' and you access it via http://192.168.11.26/dtrchecker/
-const BASE_API_URL = 'http://192.168.11.26/dtrchecker/api/api.php';
+// Define your API base URL for production hosting
+// Use relative path for better compatibility across environments
+const BASE_API_URL = '/api';
 
 export const Dashboard = () => {
   const { user, logout } = useAuth();

@@ -55,6 +55,20 @@ if ($conn === null) {
 $requestMethod = $_SERVER['REQUEST_METHOD'];
 $apiPath = $_GET['path'] ?? '/';
 
+// If path is not set, try to extract from REQUEST_URI
+if ($apiPath === '/') {
+    $requestUri = $_SERVER['REQUEST_URI'];
+    $parsedUrl = parse_url($requestUri);
+    $path = $parsedUrl['path'];
+
+    // Remove /api prefix if present
+    if (strpos($path, '/api/') === 0) {
+        $apiPath = substr($path, 4); // Remove '/api'
+    } else {
+        $apiPath = $path;
+    }
+}
+
 // Route handling
 if ($requestMethod === 'GET') {
     if ($apiPath === '/api/users') {

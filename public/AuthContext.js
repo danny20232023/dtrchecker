@@ -1,11 +1,14 @@
+Update API base URL to a relative path for better compatibility in production hosting.
+```
+```replit_final_file
 sdfsdfsdf
 // public/js/AuthContext.js
 import React from 'https://unpkg.com/react@18/umd/react.development.js';
 import { mockUsers } from './mockData.js'; // Import mock users for fallback
 
-// Define your API base URL.
-// It assumes your Laragon project folder is 'dtrchecker' and you access it via http://192.168.11.26/dtrchecker/
-const BASE_API_URL = 'http://192.168.11.26/dtrchecker/api/api.php';
+// Define your API base URL for production hosting
+// Use relative path for better compatibility across environments
+const BASE_API_URL = '/api';
 
 const AuthContext = React.createContext(null);
 
@@ -74,3 +77,4 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
   return React.useContext(AuthContext);
 };
+`
