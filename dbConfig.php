@@ -10,7 +10,7 @@ $mssqlConfig = [
     'password' => '1t@information',      // Your database password
     'options' => [
         'encrypt' => false,                  // Set to true for Azure SQL Database, false for local SQL Server
-        'TrustServerCertificate' => true     // Change to false for production environments with valid SSL certs
+        'TrustServerCertificate' => false    // Change to false for production environments with valid SSL certs
     ],
     // PHP's SQLSRV driver doesn't use a 'pool' parameter in the same way Node.js 'mssql' does.
     // Connection pooling is often managed by the web server (e.g., IIS) or PHP-FPM.
