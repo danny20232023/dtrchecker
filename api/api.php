@@ -12,11 +12,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Include your database configuration
-//require_once 'dbConfig.php';
 require_once(__DIR__ . '/../dbConfig.php');
 
-
-// Function to connect to MSSQL
+// Function to connect to MSSQL Server 2014 using SQLSRV
 function connectToMssql($config) {
     try {
         $serverName = $config['server'];
@@ -25,17 +23,20 @@ function connectToMssql($config) {
             "Uid" => $config['user'],
             "PWD" => $config['password'],
             "Encrypt" => $config['options']['encrypt'],
-            // "TrustServerCertificate" => $config['options']['trustServerCertificate']
+            "TrustServerCertificate" => $config['options']['trustServerCertificate'],
+            "CharacterSet" => "UTF-8" // Recommended for proper character encoding
         );
 
         $conn = sqlsrv_connect($serverName, $connectionOptions);
 
         if ($conn === false) {
-            throw new Exception(sqlsrv_errors()[0]['message']);
+            $errors = sqlsrv_errors();
+            throw new Exception($errors[0]['message']);
         }
+
         return $conn;
     } catch (Exception $e) {
-        error_log("Database connection failed: " . $e->getMessage());
+        error_log("❌ Database connection failed: " . $e->getMessage());
         return null;
     }
 }
@@ -43,7 +44,7 @@ function connectToMssql($config) {
 // Attempt to connect to the database
 $conn = connectToMssql($mssqlConfig);
 
-// If connection failed, return an error. The frontend will fall back to mock data.
+// If connection failed, return an error
 if ($conn === null) {
     echo json_encode(['message' => 'Backend database connection is not available.']);
     http_response_code(500);
@@ -56,13 +57,11 @@ $requestMethod = $_SERVER['REQUEST_METHOD'];
 
 // Route handling
 if ($requestMethod === 'GET') {
-    if (preg_match('/^\/dtrchecker\/api\.php$/', $requestUri)) { // Match the full path to api.php
-        $apiPath = $_GET['path'] ?? '/'; // Get the 'path' parameter from the query string
+    if (preg_match('/^\/dtrchecker\/api\.php$/', $requestUri)) {
+        $apiPath = $_GET['path'] ?? '/';
+
         if ($apiPath === '/api/users') {
-            // API to get all users (for login validation)
             try {
-                // IMPORTANT: Adjust table and column names (T_USER, USERID, BADGENUMBER, NAME, PASSWORD, DEFAULTDEPTID, PHOTO)
-                // to match your actual MSSQL schema.
                 $sql = "SELECT USERID, BADGENUMBER, NAME, PASSWORD, DEFAULTDEPTID, PHOTO FROM USERINFO";
                 $stmt = sqlsrv_query($conn, $sql);
 
@@ -74,14 +73,14 @@ if ($requestMethod === 'GET') {
                 while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
                     $users[] = $row;
                 }
+
                 echo json_encode($users);
             } catch (Exception $e) {
                 error_log("Error fetching users: " . $e->getMessage());
                 echo json_encode(['message' => 'Error fetching users from database.', 'error' => $e->getMessage()]);
                 http_response_code(500);
             }
-        } elseif (preg_match('/^\/api\/checkinout\/(\d+)$/', $apiPath, $matches)) { // Match the path parameter
-            // API to get check-in/out logs for a specific user and date range
+        } elseif (preg_match('/^\/api\/checkinout\/(\d+)$/', $apiPath, $matches)) {
             $userId = $matches[1];
             $startDate = $_GET['startDate'] ?? null;
             $endDate = $_GET['endDate'] ?? null;
@@ -93,9 +92,9 @@ if ($requestMethod === 'GET') {
             }
 
             try {
-                // IMPORTANT: Adjust table and column names (CHECKINOUT, USERID, CHECKTIME, CHECKTYPE, VERIFYCODE, Memoinfo)
-                // to match your actual MSSQL schema.
-                $sql = "SELECT USERID, CHECKTIME, CHECKTYPE, VERIFYCODE, Memoinfo FROM CHECKINOUT WHERE USERID = ? AND CHECKTIME >= ? AND CHECKTIME <= ? ORDER BY CHECKTIME ASC";
+                $sql = "SELECT USERID, CHECKTIME, CHECKTYPE, VERIFYCODE, Memoinfo FROM CHECKINOUT 
+                        WHERE USERID = ? AND CHECKTIME >= ? AND CHECKTIME <= ? 
+                        ORDER BY CHECKTIME ASC";
                 $params = array($userId, $startDate, $endDate);
                 $stmt = sqlsrv_query($conn, $sql, $params);
 
@@ -105,12 +104,12 @@ if ($requestMethod === 'GET') {
 
                 $logs = [];
                 while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-                    // Format CHECKTIME to ISO 8601 string for consistency with frontend expectations
                     if ($row['CHECKTIME'] instanceof DateTime) {
                         $row['CHECKTIME'] = $row['CHECKTIME']->format(DateTime::ISO8601);
                     }
                     $logs[] = $row;
                 }
+
                 echo json_encode($logs);
             } catch (Exception $e) {
                 error_log("Error fetching checkinout logs for user {$userId}: " . $e->getMessage());
@@ -118,7 +117,6 @@ if ($requestMethod === 'GET') {
                 http_response_code(500);
             }
         } else {
-            // Fallback for unhandled API routes
             echo json_encode(['message' => 'API endpoint not found.']);
             http_response_code(404);
         }
@@ -127,12 +125,11 @@ if ($requestMethod === 'GET') {
         http_response_code(404);
     }
 } else {
-    // For methods other than GET (e.g., POST, PUT, DELETE - not implemented in this example)
     echo json_encode(['message' => 'Method not allowed.']);
     http_response_code(405);
 }
 
-// Close the connection when done
+// Close the connection
 if ($conn !== null) {
     sqlsrv_close($conn);
 }
