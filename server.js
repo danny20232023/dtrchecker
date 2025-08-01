@@ -43,9 +43,9 @@ app.use(async (req, res, next) => {
     if (!pool || !pool.connected) {
         const connected = await connectToDatabase();
         if (!connected) {
-            // If connection fails, serve mock data or an error message
-            // For this example, we'll return an error to the frontend
-            return res.status(500).json({ message: 'Database connection is not available. Using mock data fallback (if implemented in frontend).' });
+            // If connection fails, return an error to the frontend.
+            // The frontend is designed to fall back to mock data in this scenario.
+            return res.status(500).json({ message: 'Backend database connection is not available.' });
         }
     }
     next();
@@ -58,6 +58,8 @@ app.get('/api/users', async (req, res) => {
         if (!pool || !pool.connected) {
             return res.status(500).json({ message: 'Database connection not established.' });
         }
+        // IMPORTANT: Adjust table and column names (T_USER, USERID, BADGENUMBER, NAME, PASSWORD, DEFAULTDEPTID, PHOTO)
+        // to match your actual MSSQL schema.
         const request = pool.request();
         const result = await request.query('SELECT USERID, BADGENUMBER, NAME, PASSWORD, DEFAULTDEPTID, PHOTO FROM T_USER');
         res.json(result.recordset);
@@ -86,8 +88,8 @@ app.get('/api/checkinout/:userId', async (req, res) => {
         request.input('startDate', sql.Date, new Date(startDate));
         request.input('endDate', sql.Date, new Date(endDate));
 
-        // SQL Query to fetch check-in/out records
-        // Adjust table and column names as per your actual MSSQL schema
+        // IMPORTANT: Adjust table and column names (CHECKINOUT, USERID, CHECKTIME, CHECKTYPE, VERIFYCODE, Memoinfo)
+        // to match your actual MSSQL schema.
         const query = `
             SELECT
                 USERID,
