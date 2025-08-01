@@ -1,5 +1,5 @@
 // public/js/Dashboard.js
-import React from 'https://unpkg.com/react@18/umd/react.development.js';
+import React, { useState, useEffect } from 'https://unpkg.com/react@18/umd/react.development.js';
 import { useAuth } from './AuthContext.js';
 import { PrintPreview } from './PrintPreview.js';
 import { mockDepartments, mockSchClass, mockCheckinout } from './mockData.js';
@@ -11,65 +11,57 @@ const BASE_API_URL = 'http://192.168.11.26/dtrchecker/api/api.php';
 
 export const Dashboard = () => {
   const { user, logout } = useAuth();
-  const [dailyLogs, setDailyLogs] = React.useState([]);
-  const [loadingLogs, setLoadingLogs] = React.useState(true);
-  const [selectedFilter, setSelectedFilter] = React.useState('today');
-  const [isCategorizedView, setIsCategorizedView] = React.useState(true);
-  const [showPrintPreview, setShowPrintPreview] = React.useState(false);
-  const [logsForPrint, setLogsForPrint] = React.useState([]);
-  const [printTitle, setPrintTitle] = React.useState('');
-  const [apiError, setApiError] = React.useState(false); // New state for API errors
+  const [dailyLogs, setDailyLogs] = useState([]);
+  const [loadingLogs, setLoadingLogs] = useState(true);
+  const [selectedFilter, setSelectedFilter] = useState('thisMonth'); // Default filter to this month
+  const [isCategorizedView, setIsCategorizedView] = useState(true); // State for view mode
+  const [showPrintModal, setShowPrintModal] = useState(false); // State to control modal visibility
+  const [showPrintPreview, setShowPrintPreview] = useState(false); // State to control print preview visibility
+  const [logsForPrint, setLogsForPrint] = useState([]); // Logs prepared for print preview
+  const [printTitle, setPrintTitle] = useState(''); // Title for the print preview
+  const [apiError, setApiError] = useState(false); // State for API errors
+  const [pendingPrintMonth, setPendingPrintMonth] = useState(null); // 'thisMonth', 'lastMonth', or null
 
-
+  // Function to calculate date ranges based on filter
   const getDateRange = (filter) => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0); // Normalize to start of today
 
-    let startDate = new Date();
-    let endDate = new Date();
+    let startDate = new Date(today);
+    let endDate = new Date(today);
 
     switch (filter) {
       case 'today':
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setHours(23, 59, 59, 999);
+        // startDate is already today
         break;
       case 'last2weeks':
-        startDate.setDate(today.getDate() - 13);
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setHours(23, 59, 59, 999);
+        startDate.setDate(today.getDate() - 13); // Today minus 13 days to cover 14 days total
         break;
       case 'thisMonth':
-        startDate.setDate(1);
-        startDate.setHours(0, 0, 0, 0);
-        endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        endDate.setHours(23, 59, 59, 999);
+        startDate.setDate(1); // First day of current month
         break;
       case 'lastMonth':
         startDate.setMonth(today.getMonth() - 1);
-        startDate.setDate(1);
-        startDate.setHours(0, 0, 0, 0);
-        endDate = new Date(today.getFullYear(), today.getMonth(), 0);
-        endDate.setHours(23, 59, 59, 999);
+        startDate.setDate(1); // First day of last month
+        endDate = new Date(today.getFullYear(), today.getMonth(), 0); // Last day of last month
         break;
       default:
+        // Default to this month if something goes wrong
         startDate.setDate(1);
-        startDate.setHours(0, 0, 0, 0);
-        endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        endDate.setHours(23, 59, 59, 999);
         break;
     }
     return { startDate, endDate };
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (user) {
       setLoadingLogs(true);
       setApiError(false); // Reset API error state
 
-      let rangeStartDate, rangeEndDate;
-      let currentPrintTitle = '';
+      const { startDate, endDate } = getDateRange(selectedFilter);
 
-      ({ startDate: rangeStartDate, endDate: rangeEndDate } = getDateRange(selectedFilter));
+      // Determine the title for the printout
+      let currentPrintTitle = '';
       if (selectedFilter === 'thisMonth') {
           currentPrintTitle = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
       } else if (selectedFilter === 'lastMonth') {
@@ -84,12 +76,12 @@ export const Dashboard = () => {
       setPrintTitle(currentPrintTitle);
 
       console.log(`Selected Filter: ${selectedFilter}`);
-      console.log(`Calculated Range: ${rangeStartDate.toLocaleDateString()} to ${rangeEndDate.toLocaleDateString()}`);
+      console.log(`Calculated Range: ${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`);
 
       const fetchLogs = async () => {
         try {
-            const formattedStartDate = rangeStartDate.toISOString().split('T')[0];
-            const formattedEndDate = rangeEndDate.toISOString().split('T')[0];
+            const formattedStartDate = startDate.toISOString().split('T')[0];
+            const formattedEndDate = endDate.toISOString().split('T')[0];
             // Call the PHP API for checkinout logs
             const response = await fetch(`${BASE_API_URL}?path=/api/checkinout/${user.USERID}&startDate=${formattedStartDate}&endDate=${formattedEndDate}`);
 
@@ -107,23 +99,16 @@ export const Dashboard = () => {
       };
 
       fetchLogs().then(userRawLogs => {
-        // Filter raw logs to only include entries within the calculated range
-        const filteredUserLogs = userRawLogs.filter(log => {
-          const logDate = new Date(log.CHECKTIME);
-          logDate.setHours(0, 0, 0, 0); // Normalize to start of day for comparison
-          return logDate >= rangeStartDate && logDate <= rangeEndDate;
-        });
-
         // Generate all dates within the calculated range for a complete calendar display
         const allDatesInRange = [];
-        let currentDateIterator = new Date(rangeStartDate);
-        while (currentDateIterator <= rangeEndDate) {
+        let currentDateIterator = new Date(startDate);
+        while (currentDateIterator <= endDate) {
             allDatesInRange.push(toDateString(currentDateIterator));
             currentDateIterator.setDate(currentDateIterator.getDate() + 1);
         }
 
-        const groupedLogs = filteredUserLogs.reduce((acc, log) => {
-          const date = toDateString(new Date(log.CHECKTIME));
+        const groupedLogs = userRawLogs.reduce((acc, log) => {
+          const date = toDateString(new Date(log.CHECKTIME)); // YYYY-MM-DD
           if (!acc[date]) {
             acc[date] = [];
           }
@@ -132,155 +117,170 @@ export const Dashboard = () => {
         }, {});
 
         const processedDailyLogs = allDatesInRange.map(date => {
-            const dailyEntries = groupedLogs[date] || [];
-            dailyEntries.sort((a, b) => new Date(a.CHECKTIME) - new Date(b.CHECKTIME));
+          const dailyEntries = groupedLogs[date] || [];
+          dailyEntries.sort((a, b) => new Date(a.CHECKTIME) - new Date(b.CHECKTIME)); // Sort by time within the day
 
-            let displayTimes = [];
-            let remarks = dailyEntries.filter(log => log.Memoinfo).map(log => log.Memoinfo).join('; ') || '';
+          let displayTimes = [];
+          let remarks = dailyEntries.filter(log => log.Memoinfo).map(log => log.Memoinfo).join('; ') || ''; // Initialize as empty string
 
-            const dateObj = new Date(date);
-            const dayOfWeek = dateObj.getDay();
+          const dateObj = new Date(date);
+          const dayOfWeek = dateObj.getDay(); // 0 for Sunday, 6 for Saturday
 
-            if (dayOfWeek === 6) { // Saturday
-                if (remarks === 'N/A' || !remarks) {
-                    remarks = 'Saturday';
-                } else if (!remarks.includes('Saturday')) {
-                    remarks = `Saturday; ${remarks}`;
-                }
-            } else if (dayOfWeek === 0) { // Sunday
-                if (remarks === 'N/A' || !remarks) {
-                    remarks = 'Sunday';
-                } else if (!remarks.includes('Sunday')) {
-                    remarks = `Sunday; ${remarks}`;
-                }
-            }
+          if (dayOfWeek === 6) { // Saturday
+              if (remarks === 'N/A' || !remarks) {
+                  remarks = 'Saturday';
+              } else if (!remarks.includes('Saturday')) {
+                  remarks = `Saturday; ${remarks}`;
+              }
+          } else if (dayOfWeek === 0) { // Sunday
+              if (remarks === 'N/A' || !remarks) {
+                  remarks = 'Sunday';
+              } else if (!remarks.includes('Sunday')) {
+                  remarks = `Sunday; ${remarks}`;
+              }
+          }
 
-            if (isCategorizedView) {
-                let morningIn = '-';
-                let morningOut = '-';
-                let afternoonIn = '-';
-                let afternoonOut = '-';
+          if (isCategorizedView) {
+            // Categorized View Logic
+            let morningIn = '-';
+            let morningOut = '-';
+            let afternoonIn = '-';
+            let afternoonOut = '-';
 
-                const isWithinWindow = (logTime, windowType) => {
-                    const logTotalMinutes = logTime.getHours() * 60 + logTime.getMinutes();
-                    let lowerBoundMinutes, upperBoundMinutes;
+            // Define 2-hour windows around the typical shift times
+            const isWithinWindow = (logTime, windowType) => {
+              const logTotalMinutes = logTime.getHours() * 60 + logTime.getMinutes();
+              let lowerBoundMinutes, upperBoundMinutes;
 
-                    switch (windowType) {
-                        case 'morningIn':
-                            lowerBoundMinutes = parseTime('06:00:00').getHours() * 60;
-                            upperBoundMinutes = parseTime('10:00:00').getHours() * 60 + 59;
-                            break;
-                        case 'morningOut':
-                            lowerBoundMinutes = parseTime('10:00:00').getHours() * 60;
-                            upperBoundMinutes = parseTime('14:00:00').getHours() * 60 + 59;
-                            break;
-                        case 'afternoonIn':
-                            lowerBoundMinutes = parseTime('11:00:00').getHours() * 60;
-                            upperBoundMinutes = parseTime('15:00:00').getHours() * 60 + 59;
-                            break;
-                        case 'afternoonOut':
-                            lowerBoundMinutes = parseTime('15:00:00').getHours() * 60;
-                            upperBoundMinutes = parseTime('19:00:00').getHours() * 60 + 59;
-                            break;
-                        default:
-                            return false;
-                    }
-                    return logTotalMinutes >= lowerBoundMinutes && logTotalMinutes <= upperBoundMinutes;
-                };
-
-                const usedLogIndices = new Set();
-
-                dailyEntries.forEach((log, index) => {
-                    if (usedLogIndices.has(index)) return;
-
-                    const logTime = new Date(log.CHECKTIME);
-                    const formattedTime = logTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-
-                    if (log.CHECKTYPE === 'I') {
-                        if (morningIn === '-' && isWithinWindow(logTime, 'morningIn')) {
-                            morningIn = formattedTime;
-                            usedLogIndices.add(index);
-                        } else if (afternoonIn === '-' && isWithinWindow(logTime, 'afternoonIn')) {
-                            afternoonIn = formattedTime;
-                            usedLogIndices.add(index);
-                        }
-                    } else if (log.CHECKTYPE === 'O') {
-                        if (morningOut === '-' && isWithinWindow(logTime, 'morningOut')) {
-                            morningOut = formattedTime;
-                            usedLogIndices.add(index);
-                        } else if (afternoonOut === '-' && isWithinWindow(logTime, 'afternoonOut')) {
-                            afternoonOut = formattedTime;
-                            usedLogIndices.add(index);
-                        }
-                    }
-                });
-
-                const unassignedEntries = dailyEntries.filter((_, index) => !usedLogIndices.has(index));
-                let unassignedIndex = 0;
-
-                if (morningIn === '-' && unassignedEntries[unassignedIndex]) {
-                    morningIn = new Date(unassignedEntries[unassignedIndex++].CHECKTIME).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                }
-                if (morningOut === '-' && unassignedEntries[unassignedIndex]) {
-                    morningOut = new Date(unassignedEntries[unassignedIndex++].CHECKTIME).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                }
-                if (afternoonIn === '-' && unassignedEntries[unassignedIndex]) {
-                    afternoonIn = new Date(unassignedEntries[unassignedIndex++].CHECKTIME).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                }
-                if (afternoonOut === '-' && unassignedEntries[unassignedIndex]) {
-                    afternoonOut = new Date(unassignedEntries[unassignedIndex++].CHECKTIME).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                }
-
-                displayTimes = [morningIn, morningOut, afternoonIn, afternoonOut];
-
-            } else { // Raw Logs View
-                let amLogs = [];
-                let pmLogs = [];
-
-                dailyEntries.forEach(log => {
-                    const logTime = new Date(log.CHECKTIME);
-                    const formattedTime = logTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                    const hour = logTime.getHours();
-
-                    if (hour < 12) {
-                        amLogs.push(formattedTime);
-                    } else {
-                        pmLogs.push(formattedTime);
-                    }
-                });
-
-                displayTimes = [
-                    amLogs.length > 0 ? amLogs.join(', ') : '-',
-                    pmLogs.length > 0 ? pmLogs.join(', ') : '-',
-                    '-',
-                    '-'
-                ];
-
-                const defaultShift = mockSchClass.find(s => s.schClassid === 1);
-                if (defaultShift) {
-                    remarks = `Shift: ${defaultShift.schName}` + (remarks ? `; ${remarks}` : '');
-                }
-            }
-
-            if (!remarks) {
-                remarks = 'N/A';
-            }
-
-            return {
-                date: new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-                checkin1: displayTimes[0],
-                checkin2: displayTimes[1],
-                checkin3: displayTimes[2],
-                checkin4: displayTimes[3],
-                remarks: remarks,
+              switch (windowType) {
+                case 'morningIn':
+                  lowerBoundMinutes = parseTime('06:00:00').getHours() * 60; // 6 AM
+                  upperBoundMinutes = parseTime('10:00:00').getHours() * 60 + 59; // 10 AM (up to 10:59)
+                  break;
+                case 'morningOut':
+                  lowerBoundMinutes = parseTime('10:00:00').getHours() * 60; // 10 AM
+                  upperBoundMinutes = parseTime('14:00:00').getHours() * 60 + 59; // 2 PM (up to 2:59)
+                  break;
+                case 'afternoonIn':
+                  lowerBoundMinutes = parseTime('11:00:00').getHours() * 60; // 11 AM
+                  upperBoundMinutes = parseTime('15:00:00').getHours() * 60 + 59; // 3 PM (up to 3:59)
+                  break;
+                case 'afternoonOut':
+                  lowerBoundMinutes = parseTime('15:00:00').getHours() * 60; // 3 PM
+                  upperBoundMinutes = parseTime('19:00:00').getHours() * 60 + 59; // 7 PM (up to 7:59)
+                  break;
+                default:
+                  return false;
+              }
+              return logTotalMinutes >= lowerBoundMinutes && logTotalMinutes <= upperBoundMinutes;
             };
-        }).sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort in ascending order
+
+            const usedLogIndices = new Set(); // To prevent using the same log multiple times
+
+            // First pass: try to match exact or near-exact times within the 2-hour window
+            dailyEntries.forEach((log, index) => {
+              if (usedLogIndices.has(index)) return;
+
+              const logTime = new Date(log.CHECKTIME);
+              const formattedTime = logTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+
+              if (log.CHECKTYPE === 'I') {
+                if (morningIn === '-' && isWithinWindow(logTime, 'morningIn')) {
+                  morningIn = formattedTime;
+                  usedLogIndices.add(index);
+                } else if (afternoonIn === '-' && isWithinWindow(logTime, 'afternoonIn')) {
+                  afternoonIn = formattedTime;
+                  usedLogIndices.add(index);
+                }
+              } else if (log.CHECKTYPE === 'O') {
+                if (morningOut === '-' && isWithinWindow(logTime, 'morningOut')) {
+                  morningOut = formattedTime;
+                  usedLogIndices.add(index);
+                } else if (afternoonOut === '-' && isWithinWindow(logTime, 'afternoonOut')) {
+                  afternoonOut = formattedTime;
+                  usedLogIndices.add(index);
+                }
+              }
+            });
+
+            // Second pass: fill remaining empty slots chronologically from unused entries
+            const unassignedEntries = dailyEntries.filter((_, index) => !usedLogIndices.has(index));
+            let unassignedIndex = 0;
+
+            if (morningIn === '-' && unassignedEntries[unassignedIndex]) {
+              morningIn = new Date(unassignedEntries[unassignedIndex++].CHECKTIME).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+            }
+            if (morningOut === '-' && unassignedEntries[unassignedIndex]) {
+              morningOut = new Date(unassignedEntries[unassignedIndex++].CHECKTIME).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+            }
+            if (afternoonIn === '-' && unassignedEntries[unassignedIndex]) {
+              afternoonIn = new Date(unassignedEntries[unassignedIndex++].CHECKTIME).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+            }
+            if (afternoonOut === '-' && unassignedEntries[unassignedIndex]) {
+              afternoonOut = new Date(unassignedEntries[unassignedIndex++].CHECKTIME).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+            }
+
+            displayTimes = [morningIn, morningOut, afternoonIn, afternoonOut];
+
+          } else {
+            // Raw Logs View Logic (AM/PM Grouping)
+            let amLogs = [];
+            let pmLogs = [];
+
+            dailyEntries.forEach(log => {
+              const logTime = new Date(log.CHECKTIME);
+              const formattedTime = logTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+              const hour = logTime.getHours();
+
+              if (hour < 12) { // Before 12 PM is AM
+                amLogs.push(formattedTime);
+              } else { // 12 PM and after is PM
+                pmLogs.push(formattedTime);
+              }
+            });
+
+            displayTimes = [
+              amLogs.length > 0 ? amLogs.join(', ') : '-',
+              pmLogs.length > 0 ? pmLogs.join(', ') : '-',
+              '-', // These columns are hidden in the UI for Raw Logs
+              '-'  // These columns are hidden in the UI for Raw Logs
+            ];
+
+            // Add shift schedule to remarks for Raw Logs view
+            const defaultShift = mockSchClass.find(s => s.schClassid === 1); // Assuming Normal Shift for raw logs remarks
+            if (defaultShift) {
+                remarks = `Shift: ${defaultShift.schName}` + (remarks ? `; ${remarks}` : '');
+            }
+          }
+
+          // If remarks is still empty, set to 'N/A'
+          if (!remarks) {
+            remarks = 'N/A';
+          }
+
+          return {
+            date: new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+            checkin1: displayTimes[0],
+            checkin2: displayTimes[1],
+            checkin3: displayTimes[2],
+            checkin4: displayTimes[3],
+            remarks: remarks,
+          };
+        }).sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort days by latest date
 
         setDailyLogs(processedDailyLogs);
         setLoadingLogs(false);
-      });
+
+        // If a print request is pending for the *currently loaded* filter, show preview
+        if (pendingPrintMonth === selectedFilter) { // Check if the loaded data matches the pending print request
+            setLogsForPrint(processedDailyLogs); // Store the processed logs for the print view
+            setShowPrintPreview(true); // Show the print preview
+            setPendingPrintMonth(null); // Reset pending print request
+        }
+
+      }); // Removed setTimeout for immediate data processing once fetched
     }
-  }, [user, selectedFilter, isCategorizedView]);
+  }, [user, selectedFilter, isCategorizedView, pendingPrintMonth]); // Add pendingPrintMonth to dependencies
 
   if (!user) {
     return <p className="text-center text-red-500 mt-10">Please log in to view your DTR logs.</p>;
@@ -293,14 +293,10 @@ export const Dashboard = () => {
         : 'bg-indigo-50/10 text-indigo-700 hover:bg-indigo-50/20'
     }`;
 
-  const handleFilterButtonClick = (filterName) => {
-    setSelectedFilter(filterName);
-  };
-
-  const handleDirectPrint = () => {
-    setLogsForPrint(dailyLogs);
-    setPrintTitle(printTitle);
-    setShowPrintPreview(true);
+  const handlePrintSelection = (month) => {
+    setShowPrintModal(false); // Close modal
+    setPendingPrintMonth(month); // Set the pending print request
+    setSelectedFilter(month); // This will trigger the useEffect to load the correct month's data
   };
 
   if (showPrintPreview) {
@@ -311,13 +307,46 @@ export const Dashboard = () => {
         isCategorizedView={isCategorizedView}
         onClose={() => {
           setShowPrintPreview(false);
-          setPrintTitle('');
-          setLogsForPrint([]);
+          setPrintTitle(''); // Clear print title
+          setLogsForPrint([]); // Clear logs for print
         }}
-        user={user}
+        user={user} // Pass user data to PrintPreview
       />
     );
   }
+
+  // PrintModal Component (Moved here for clarity, but ideally in its own file if not already)
+  const PrintModal = ({ show, onClose, onPrint }) => {
+    if (!show) return null;
+
+    return (
+      <div className="fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 p-4">
+        <div className="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full mx-auto transform scale-100 animate-fade-in">
+          <h4 className="text-xl font-bold text-gray-800 mb-6 text-center">Select Print Range</h4>
+          <div className="flex flex-col space-y-4">
+            <button
+              onClick={() => onPrint('thisMonth')}
+              className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-full shadow-md transition-all duration-200 ease-in-out transform hover:scale-105"
+            >
+              Print Current Month Logs
+            </button>
+            <button
+              onClick={() => onPrint('lastMonth')}
+              className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-full shadow-md transition-all duration-200 ease-in-out transform hover:scale-105"
+            >
+              Print Last Month Logs
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full py-3 px-4 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-full shadow-md transition-all duration-200 ease-in-out"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 lg:p-8">
@@ -330,7 +359,7 @@ export const Dashboard = () => {
                 src={user.PHOTO}
                 alt={`${user.NAME}'s photo`}
                 className="w-20 h-20 rounded-full object-cover shadow-lg border-2 border-indigo-300"
-                onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/60x60/CCCCCC/000000?text=N/A"; }}
+                onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/60x60/CCCCCC/000000?text=N/A"; }} // Fallback image
               />
             )}
             <div>
@@ -357,25 +386,25 @@ export const Dashboard = () => {
           {/* Quick Date Filters */}
           <div className="flex flex-wrap justify-center lg:justify-start gap-3">
             <button
-              onClick={() => handleFilterButtonClick('today')}
+              onClick={() => setSelectedFilter('today')}
               className={filterButtonClass('today')}
             >
               Today
             </button>
             <button
-              onClick={() => handleFilterButtonClick('last2weeks')}
+              onClick={() => setSelectedFilter('last2weeks')}
               className={filterButtonClass('last2weeks')}
             >
               Last 2 Weeks
             </button>
             <button
-              onClick={() => handleFilterButtonClick('thisMonth')}
+              onClick={() => setSelectedFilter('thisMonth')}
               className={filterButtonClass('thisMonth')}
             >
               This Month
             </button>
             <button
-              onClick={() => handleFilterButtonClick('lastMonth')}
+              onClick={() => setSelectedFilter('lastMonth')}
               className={filterButtonClass('lastMonth')}
             >
               Last Month
@@ -407,7 +436,7 @@ export const Dashboard = () => {
             </button>
             {/* Print button with new printer icon */}
             <button
-              onClick={handleDirectPrint}
+              onClick={() => setShowPrintModal(true)} // Open modal on print click
               className="p-3 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:scale-110"
               title="Print Logs"
             >
@@ -483,7 +512,7 @@ export const Dashboard = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {day.checkin2}
                     </td>
-                    {isCategorizedView && (
+                    {isCategorizedView && ( // Only render these columns in Categorized view
                       <>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                           {day.checkin3}
@@ -499,48 +528,15 @@ export const Dashboard = () => {
                   </tr>
                 ))}
               </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        };
-
-        // --- AppContent Component ---
-        const AppContent = () => {
-          const { user, loading } = useAuth();
-
-          if (loading) {
-            return (
-              <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-                <svg className="animate-spin h-12 w-12 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span className="ml-4 text-xl text-gray-700">Loading application...</span>
-              </div>
-            );
-          }
-
-          let content;
-          if (user !== null) {
-            content = <Dashboard />;
-          } else {
-            content = <Login />;
-          }
-
-          return content;
-        };
-
-        // --- Main App Component ---
-        function App() {
-          return (
-            <AuthProvider>
-              <AppContent />
-            </AuthProvider>
-          );
-        }
-
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-    
+            </table>
+          </div>
+        )}
+      </div>
+      <PrintModal
+        show={showPrintModal}
+        onClose={() => setShowPrintModal(false)}
+        onPrint={handlePrintSelection}
+      />
+    </div>
+  );
+};
