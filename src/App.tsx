@@ -1,12 +1,10 @@
-// public/main.js
-import React from 'https://unpkg.com/react@18/umd/react.development.js';
-import ReactDOM from 'https://unpkg.com/react-dom@18/umd/react-dom.development.js';
-import { AuthProvider, useAuth } from './AuthContext.js';
-import { Login } from './login.js';
-import { Dashboard } from './Dashboard.js';
 
-// Main AppContent component to handle routing based on authentication
-const AppContent = () => {
+import React from 'react';
+import { AuthProvider, useAuth } from './AuthContext';
+import { Login } from './Login';
+import { Dashboard } from './Dashboard';
+
+const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -21,24 +19,15 @@ const AppContent = () => {
     );
   }
 
-  let content;
-  if (user !== null) {
-    content = <Dashboard />;
-  } else {
-    content = <Login />;
-  }
-
-  return content;
+  return user !== null ? <Dashboard /> : <Login />;
 };
 
-// Main App component
-function App() {
+const App: React.FC = () => {
   return (
     <AuthProvider>
       <AppContent />
     </AuthProvider>
   );
-}
+};
 
-// Render the application
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+export default App;
