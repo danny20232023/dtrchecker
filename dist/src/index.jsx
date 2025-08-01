@@ -1,6 +1,6 @@
    import React from 'react';
     import ReactDOM from 'react-dom/client';
-    import App from './app'; // Import the main App component
+    import App from './App.js'; // Import the main App component
 
     // This is the entry point of your React application.
     // It renders the main App component into the 'root' div in your public/index.html file.
