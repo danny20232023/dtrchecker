@@ -98,7 +98,8 @@
 
     <script type="text/babel">
         // Define your API base URL. This now points to your PHP API file in the 'api' subfolder.
-        const BASE_API_URL = 'http://localhost/api/api.php'; // Corrected path for new structure
+        // It assumes your Laragon project folder is 'dtrchecker' and you access it via http://localhost/dtrchecker/
+        const BASE_API_URL = 'http://localhost/dtrchecker/api/api.php'; // Corrected path for new structure
 
         // --- Mock Data (re-integrated directly for fallback) ---
         // These are used if the API calls fail or for initial structure.
