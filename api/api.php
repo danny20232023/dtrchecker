@@ -12,7 +12,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Include your database configuration
-require_once 'dbConfig.php';
+//require_once 'dbConfig.php';
+require_once(__DIR__ . '/../dbConfig.php');
+
 
 // Function to connect to MSSQL
 function connectToMssql($config) {
