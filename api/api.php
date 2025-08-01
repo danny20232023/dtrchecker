@@ -51,79 +51,83 @@ if ($conn === null) {
     exit();
 }
 
-// Get the requested path
-$requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+// Get HTTP method and API path
 $requestMethod = $_SERVER['REQUEST_METHOD'];
+$apiPath = $_GET['path'] ?? '/';
 
 // Route handling
 if ($requestMethod === 'GET') {
-    if (preg_match('/^\/dtrchecker\/api\.php$/', $requestUri)) {
-        $apiPath = $_GET['path'] ?? '/';
+    if ($apiPath === '/api/users') {
+        try {
+            $sql = "SELECT USERID, BADGENUMBER, NAME, PASSWORD, DEFAULTDEPTID, PHOTO FROM USERINFO";
+            $stmt = sqlsrv_query($conn, $sql);
 
-        if ($apiPath === '/api/users') {
-            try {
-                $sql = "SELECT USERID, BADGENUMBER, NAME, PASSWORD, DEFAULTDEPTID, PHOTO FROM USERINFO";
-                $stmt = sqlsrv_query($conn, $sql);
-
-                if ($stmt === false) {
-                    throw new Exception(sqlsrv_errors()[0]['message']);
-                }
-
-                $users = [];
-                while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-                    $users[] = $row;
-                }
-
-                echo json_encode($users);
-            } catch (Exception $e) {
-                error_log("Error fetching users: " . $e->getMessage());
-                echo json_encode(['message' => 'Error fetching users from database.', 'error' => $e->getMessage()]);
-                http_response_code(500);
-            }
-        } elseif (preg_match('/^\/api\/checkinout\/(\d+)$/', $apiPath, $matches)) {
-            $userId = $matches[1];
-            $startDate = $_GET['startDate'] ?? null;
-            $endDate = $_GET['endDate'] ?? null;
-
-            if (!$startDate || !$endDate) {
-                echo json_encode(['message' => 'startDate and endDate are required.']);
-                http_response_code(400);
-                exit();
+            if ($stmt === false) {
+                throw new Exception(sqlsrv_errors()[0]['message']);
             }
 
-            try {
-                $sql = "SELECT USERID, CHECKTIME, CHECKTYPE, VERIFYCODE, Memoinfo FROM CHECKINOUT 
-                        WHERE USERID = ? AND CHECKTIME >= ? AND CHECKTIME <= ? 
-                        ORDER BY CHECKTIME ASC";
-                $params = array($userId, $startDate, $endDate);
-                $stmt = sqlsrv_query($conn, $sql, $params);
-
-                if ($stmt === false) {
-                    throw new Exception(sqlsrv_errors()[0]['message']);
-                }
-
-                $logs = [];
-                while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-                    if ($row['CHECKTIME'] instanceof DateTime) {
-                        $row['CHECKTIME'] = $row['CHECKTIME']->format(DateTime::ISO8601);
-                    }
-                    $logs[] = $row;
-                }
-
-                echo json_encode($logs);
-            } catch (Exception $e) {
-                error_log("Error fetching checkinout logs for user {$userId}: " . $e->getMessage());
-                echo json_encode(['message' => 'Error fetching check-in/out logs from database.', 'error' => $e->getMessage()]);
-                http_response_code(500);
+            $users = [];
+            while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+                $users[] = $row;
             }
-        } else {
-            echo json_encode(['message' => 'API endpoint not found.']);
-            http_response_code(404);
+
+            echo json_encode($users);
+        } catch (Exception $e) {
+            error_log("Error fetching users: " . $e->getMessage());
+            echo json_encode([
+                'message' => 'Error fetching users from database.',
+                'error' => $e->getMessage()
+            ]);
+            http_response_code(500);
         }
+
+    } elseif (preg_match('/^\/api\/checkinout\/(\d+)$/', $apiPath, $matches)) {
+        $userId = $matches[1];
+        $startDate = $_GET['startDate'] ?? null;
+        $endDate = $_GET['endDate'] ?? null;
+
+        if (!$startDate || !$endDate) {
+            echo json_encode(['message' => 'startDate and endDate are required.']);
+            http_response_code(400);
+            exit();
+        }
+
+        try {
+            $sql = "SELECT USERID, CHECKTIME, CHECKTYPE, VERIFYCODE, Memoinfo 
+                    FROM CHECKINOUT 
+                    WHERE USERID = ? AND CHECKTIME >= ? AND CHECKTIME <= ? 
+                    ORDER BY CHECKTIME ASC";
+
+            $params = array($userId, $startDate, $endDate);
+            $stmt = sqlsrv_query($conn, $sql, $params);
+
+            if ($stmt === false) {
+                throw new Exception(sqlsrv_errors()[0]['message']);
+            }
+
+            $logs = [];
+            while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+                if ($row['CHECKTIME'] instanceof DateTime) {
+                    $row['CHECKTIME'] = $row['CHECKTIME']->format(DateTime::ISO8601);
+                }
+                $logs[] = $row;
+            }
+
+            echo json_encode($logs);
+        } catch (Exception $e) {
+            error_log("Error fetching checkinout logs for user {$userId}: " . $e->getMessage());
+            echo json_encode([
+                'message' => 'Error fetching check-in/out logs from database.',
+                'error' => $e->getMessage()
+            ]);
+            http_response_code(500);
+        }
+
     } else {
-        echo json_encode(['message' => 'Invalid API entry point.']);
+        echo json_encode(['message' => 'API endpoint not found.']);
         http_response_code(404);
     }
+
 } else {
     echo json_encode(['message' => 'Method not allowed.']);
     http_response_code(405);
