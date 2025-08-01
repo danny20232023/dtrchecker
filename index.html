@@ -97,127 +97,43 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <script type="text/babel">
-        // --- Mock Data (src/mockData.js content) ---
+        // Define your API base URL. This now points to your PHP API file in the 'dtrchecker' folder.
+        const BASE_API_URL = 'http://localhost/dtrchecker/api.php';
+
+        // --- Mock Data (re-integrated directly for fallback) ---
+        // These are used if the API calls fail or for initial structure.
         const mockDepartments = [
-          { DEPTID: 1, DEPTNAME: 'Human Resources', SUPDEPTID: 0 },
-          { DEPTID: 2, DEPTNAME: 'Engineering', SUPDEPTID: 0 },
-          { DEPTID: 3, DEPTNAME: 'Sales', SUPDEPTID: 0 },
-          { DEPTID: 4, DEPTNAME: 'Marketing', SUPDEPTID: 0 },
+            { DEPTID: 1, DEPTNAME: 'Human Resources', SUPDEPTID: 0 },
+            { DEPTID: 2, DEPTNAME: 'Engineering', SUPDEPTID: 0 },
+            { DEPTID: 3, DEPTNAME: 'Sales', SUPDEPTID: 0 },
+            { DEPTID: 4, DEPTNAME: 'Marketing', SUPDEPTID: 0 },
         ];
-
         const mockSchClass = [
-          {
-            schClassid: 1,
-            schName: 'Normal Shift',
-            StartTime: '08:00:00', // 8 AM
-            EndTime: '17:00:00',   // 5 PM
-            CheckInTime1: '08:00:00', // First expected check-in
-            CheckOutTime1: '12:00:00', // First expected check-out (lunch)
-            CheckInTime2: '13:00:00', // Second expected check-in (after lunch)
-            CheckOutTime2: '17:00:00', // Second expected check-out (end of day)
-            LateMinutes: 15,
-            EarlyMinutes: 15,
-            CheckIn: 1,
-            CheckOut: 1,
-            Color: 16715535,
-            AutoBind: 1,
-            WorkDay: 1,
-            SensorID: null,
-            WorkMins: 480 // 8 hours * 60 minutes
-          },
-          {
-            schClassid: 2,
-            schName: 'Night Shift',
-            StartTime: '22:00:00', // 10 PM
-            EndTime: '07:00:00',   // 7 AM (next day)
-            CheckInTime1: '22:00:00',
-            CheckOutTime1: '02:00:00', // Mid-shift break
-            CheckInTime2: '03:00:00',
-            CheckOutTime2: '07:00:00',
-            LateMinutes: 15,
-            EarlyMinutes: 15,
-            CheckIn: 1, CheckOut: 1, Color: 123456, AutoBind: 1, WorkDay: 1, SensorID: null, WorkMins: 480
-          }
+            {
+                schClassid: 1,
+                schName: 'Normal Shift',
+                StartTime: '08:00:00', EndTime: '17:00:00',
+                CheckInTime1: '08:00:00', CheckOutTime1: '12:00:00',
+                CheckInTime2: '13:00:00', CheckOutTime2: '17:00:00',
+                LateMinutes: 15, EarlyMinutes: 15, CheckIn: 1, CheckOut: 1,
+                Color: 16715535, AutoBind: 1, WorkDay: 1, SensorID: null, WorkMins: 480
+            }
         ];
-
         const mockUsers = [
-          { USERID: 101, BADGENUMBER: 'EMP001', NAME: 'Alice Smith', PASSWORD: 'password123', DEFAULTDEPTID: 2, PHOTO: 'https://placehold.co/60x60/ADD8E6/000000?text=AS' }, // Engineering
-          { USERID: 102, BADGENUMBER: 'EMP002', NAME: 'Bob Johnson', PASSWORD: 'securepass', DEFAULTDEPTID: 2, PHOTO: 'https://placehold.co/60x60/90EE90/000000?text=BJ' }, // Engineering
-          { USERID: 103, BADGENUMBER: 'EMP003', NAME: 'Charlie Brown', PASSWORD: 'mysecret', DEFAULTDEPTID: 3, PHOTO: 'https://placehold.co/60x60/FFD700/000000?text=CB' }, // Sales
-          { USERID: 104, BADGENUMBER: 'EMP004', NAME: 'Diana Prince', PASSWORD: 'wonderwoman', DEFAULTDEPTID: 1, PHOTO: 'https://placehold.co/60x60/FFB6C1/000000?text=DP' }, // Human Resources
+            { USERID: 101, BADGENUMBER: 'EMP001', NAME: 'Alice Smith', PASSWORD: 'password123', DEFAULTDEPTID: 2, PHOTO: 'https://placehold.co/60x60/ADD8E6/000000?text=AS' },
+            { USERID: 102, BADGENUMBER: 'EMP002', NAME: 'Bob Johnson', PASSWORD: 'securepass', DEFAULTDEPTID: 2, PHOTO: 'https://placehold.co/60x60/90EE90/000000?text=BJ' },
+            { USERID: 103, BADGENUMBER: 'EMP003', NAME: 'Charlie Brown', PASSWORD: 'mysecret', DEFAULTDEPTID: 3, PHOTO: 'https://placehold.co/60x60/FFD700/000000?text=CB' },
+            { USERID: 104, BADGENUMBER: 'EMP004', NAME: 'Diana Prince', PASSWORD: 'wonderwoman', DEFAULTDEPTID: 1, PHOTO: 'https://placehold.co/60x60/FFB6C1/000000?text=DP' },
         ];
-
         const mockCheckinout = [
-          // --- USERID 101 (Alice Smith) - August Data (Normal Shift) ---
-          { USERID: 101, CHECKTIME: '2025-08-01T08:00:00Z', CHECKTYPE: 'I', VERIFYCODE: 0, Memoinfo: 'Start of day' },
-          { USERID: 101, CHECKTIME: '2025-08-01T12:00:00Z', CHECKTYPE: 'O', VERIFYCODE: 0, Memoinfo: 'Lunch out' },
-          { USERID: 101, CHECKTIME: '2025-08-01T13:00:00Z', CHECKTYPE: 'I', VERIFYCODE: 0, Memoinfo: 'Lunch in' },
-          { USERID: 101, CHECKTIME: '2025-08-01T17:00:00Z', CHECKTYPE: 'O', VERIFYCODE: 0, Memoinfo: 'End of shift' },
-
-          // --- USERID 101 (Alice Smith) - July Data (Normal Shift) ---
-          // More than 4 entries for July 28, 2025 to test uncategorized view
-          { USERID: 101, CHECKTIME: '2025-07-28T07:50:00Z', CHECKTYPE: 'I', VERIFYCODE: 0, Memoinfo: 'Early morning start' },
-          { USERID: 101, CHECKTIME: '2025-07-28T12:05:00Z', CHECKTYPE: 'O', VERIFYCODE: 0, Memoinfo: 'Lunch out' },
-          { USERID: 101, CHECKTIME: '2025-07-28T12:55:00Z', CHECKTYPE: 'I', VERIFYCODE: 0, Memoinfo: 'Lunch in' },
-          { USERID: 101, CHECKTIME: '2025-07-28T17:00:00Z', CHECKTYPE: 'O', VERIFYCODE: 0, Memoinfo: 'End of shift' },
-          { USERID: 101, CHECKTIME: '2025-07-28T17:30:00Z', CHECKTYPE: 'I', VERIFYCODE: 0, Memoinfo: 'Overtime start' }, // 5th entry
-          { USERID: 101, CHECKTIME: '2025-07-28T19:00:00Z', CHECKTYPE: 'O', VERIFYCODE: 0, Memoinfo: 'Overtime end' },   // 6th entry
-
-          { USERID: 101, CHECKTIME: '2025-07-29T08:00:00Z', CHECKTYPE: 'I', VERIFYCODE: 0, Memoinfo: 'Morning check-in' },
-          { USERID: 101, CHECKTIME: '2025-07-29T12:00:00Z', CHECKTYPE: 'O', VERIFYCODE: 0, Memoinfo: 'Lunch break start' },
-          { USERID: 101, CHECKTIME: '2025-07-29T13:00:00Z', CHECKTYPE: 'I', VERIFYCODE: 0, Memoinfo: 'Lunch break end' },
-          { USERID: 101, CHECKTIME: '2025-07-29T17:00:00Z', CHECKTYPE: 'O', VERIFYCODE: 0, Memoinfo: 'End of shift' },
-
-          { USERID: 101, CHECKTIME: '2025-07-30T08:15:00Z', CHECKTYPE: 'I', VERIFYCODE: 0 },
-          { USERID: 101, CHECKTIME: '2025-07-30T17:30:00Z', CHECKTYPE: 'O', VERIFYCODE: 0 },
-
-          // --- USERID 101 (Alice Smith) - June Data (Normal Shift) ---
-          { USERID: 101, CHECKTIME: '2025-06-25T08:00:00Z', CHECKTYPE: 'I', VERIFYCODE: 0, Memoinfo: 'Start of day (June)' },
-          { USERID: 101, CHECKTIME: '2025-06-25T17:00:00Z', CHECKTYPE: 'O', VERIFYCODE: 0, Memoinfo: 'End of day (June)' },
-          { USERID: 101, CHECKTIME: '2025-06-26T08:30:00Z', CHECKTYPE: 'I', VERIFYCODE: 0 },
-          { USERID: 101, CHECKTIME: '2025-06-26T17:45:00Z', CHECKTYPE: 'O', VERIFYCODE: 0 },
-          { USERID: 101, CHECKTIME: '2025-06-27T09:00:00Z', CHECKTYPE: 'I', VERIFYCODE: 0 },
-          { USERID: 101, CHECKTIME: '2025-06-27T18:00:00Z', CHECKTYPE: 'O', VERIFYCODE: 0 },
-          { USERID: 101, CHECKTIME: '2025-06-28T08:05:00Z', CHECKTYPE: 'I', VERIFYCODE: 0, Memoinfo: 'Early June start' },
-          { USERID: 101, CHECKTIME: '2025-06-28T12:00:00Z', CHECKTYPE: 'O', VERIFYCODE: 0, Memoinfo: 'June lunch out' },
-          { USERID: 101, CHECKTIME: '2025-06-28T13:00:00Z', CHECKTYPE: 'I', VERIFYCODE: 0, Memoinfo: 'June lunch in' },
-          { USERID: 101, CHECKTIME: '2025-06-28T17:10:00Z', CHECKTYPE: 'O', VERIFYCODE: 0, Memoinfo: 'June end of day' },
-
-
-          // --- USERID 102 (Bob Johnson) - July Data (Normal Shift) ---
-          { USERID: 102, CHECKTIME: '2025-07-29T08:30:00Z', CHECKTYPE: 'I', VERIFYCODE: 0 },
-          { USERID: 102, CHECKTIME: '2025-07-29T17:15:00Z', CHECKTYPE: 'O', VERIFYCODE: 0 },
-
-          // --- USERID 102 (Bob Johnson) - June Data (Normal Shift) ---
-          { USERID: 102, CHECKTIME: '2025-06-20T08:45:00Z', CHECKTYPE: 'I', VERIFYCODE: 0, Memoinfo: 'June 20 check-in' },
-          { USERID: 102, CHECKTIME: '2025-06-20T17:00:00Z', CHECKTYPE: 'O', VERIFYCODE: 0, Memoinfo: 'June 20 check-out' },
-          { USERID: 102, CHECKTIME: '2025-06-21T09:00:00Z', CHECKTYPE: 'I', VERIFYCODE: 0 },
-          { USERID: 102, CHECKTIME: '2025-06-21T16:55:00Z', CHECKTYPE: 'O', VERIFYCODE: 0 },
-
-          // --- USERID 103 (Charlie Brown) - July Data (Normal Shift) ---
-          { USERID: 103, CHECKTIME: '2025-07-29T07:45:00Z', CHECKTYPE: 'I', VERIFYCODE: 0 }, // Early check-in
-          { USERID: 103, CHECKTIME: '2025-07-29T12:30:00Z', CHECKTYPE: 'O', VERIFYCODE: 0 },
-          { USERID: 103, CHECKTIME: '2025-07-29T13:30:00Z', CHECKTYPE: 'I', VERIFYCODE: 0 },
-          { USERID: 103, CHECKTIME: '2025-07-29T16:50:00Z', CHECKTYPE: 'O', VERIFYCODE: 0 },
-
-          { USERID: 103, CHECKTIME: '2025-07-30T07:55:00Z', CHECKTYPE: 'I', VERIFYCODE: 0 },
-          { USERID: 103, CHECKTIME: '2025-07-30T17:05:00Z', CHECKTYPE: 'O', VERIFYCODE: 0 },
-          { USERID: 103, CHECKTIME: '2025-07-30T20:00:00Z', CHECKTYPE: 'I', VERIFYCODE: 0, Memoinfo: 'Overtime check-in' }, // Extra check-in
-
-          // --- USERID 103 (Charlie Brown) - June Data (Normal Shift) ---
-          { USERID: 103, CHECKTIME: '2025-06-18T07:30:00Z', CHECKTYPE: 'I', VERIFYCODE: 0, Memoinfo: 'Early start for project' },
-          { USERID: 103, CHECKTIME: '2025-06-18T16:40:00Z', CHECKTYPE: 'O', VERIFYCODE: 0 },
-          { USERID: 103, CHECKTIME: '2025-06-19T08:00:00Z', CHECKTYPE: 'I', VERIFYCODE: 0 },
-          { USERID: 103, CHECKTIME: '2025-06-19T12:00:00Z', CHECKTYPE: 'O', VERIFYCODE: 0 },
-          { USERID: 103, CHECKTIME: '2025-06-19T13:00:00Z', CHECKTYPE: 'I', VERIFYCODE: 0 },
-          { USERID: 103, CHECKTIME: '2025-06-19T17:00:00Z', CHECKTYPE: 'O', VERIFYCODE: 0 },
-
-          // --- USERID 104 (Diana Prince) - July Data (Normal Shift) ---
-          { USERID: 104, CHECKTIME: '2025-07-29T09:00:00Z', CHECKTYPE: 'I', VERIFYCODE: 0, Memoinfo: 'HR daily check-in' },
-          { USERID: 104, CHECKTIME: '2025-07-29T17:00:00Z', CHECKTYPE: 'O', VERIFYCODE: 0, Memoinfo: 'HR daily check-out' },
-          { USERID: 104, CHECKTIME: '2025-07-30T09:10:00Z', CHECKTYPE: 'I', VERIFYCODE: 0 },
-          { USERID: 104, CHECKTIME: '2025-07-30T17:20:00Z', CHECKTYPE: 'O', VERIFYCODE: 0 },
+            { USERID: 101, CHECKTIME: '2025-08-01T08:00:00Z', CHECKTYPE: 'I', Memoinfo: 'Start of day' },
+            { USERID: 101, CHECKTIME: '2025-08-01T17:00:00Z', CHECKTYPE: 'O', Memoinfo: 'End of shift' },
+            { USERID: 101, CHECKTIME: '2025-07-29T08:00:00Z', CHECKTYPE: 'I', Memoinfo: 'Morning check-in' },
+            { USERID: 101, CHECKTIME: '2025-07-29T17:00:00Z', CHECKTYPE: 'O', Memoinfo: 'End of shift' },
+            { USERID: 103, CHECKTIME: '2025-07-29T07:45:00Z', CHECKTYPE: 'I', Memoinfo: 'Early check-in' },
+            { USERID: 103, CHECKTIME: '2025-07-29T16:50:00Z', CHECKTYPE: 'O', Memoinfo: 'Early check-out' },
         ];
+
 
         // --- AuthContext (AuthContext.js equivalent) ---
         const AuthContext = React.createContext(null);
@@ -236,21 +152,40 @@
 
           const login = async (userId, badgeNumber) => {
             setLoading(true);
-            return new Promise((resolve) => {
-              setTimeout(() => {
-                const foundUser = mockUsers.find(
-                  (u) => u.USERID === parseInt(userId) && u.BADGENUMBER === badgeNumber
+            try {
+                // Call the PHP API for users
+                const response = await fetch(`${BASE_API_URL}?path=/api/users`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const users = await response.json();
+                const foundUser = users.find(
+                    (u) => u.USERID === parseInt(userId) && u.BADGENUMBER === badgeNumber
                 );
+
                 if (foundUser) {
                   setUser(foundUser);
                   localStorage.setItem('dtr_user', JSON.stringify(foundUser));
-                  resolve({ success: true, user: foundUser });
+                  return { success: true, user: foundUser };
                 } else {
-                  resolve({ success: false, message: 'Invalid User ID or Badge Number' });
+                  return { success: false, message: 'Invalid User ID or Badge Number' };
                 }
+            } catch (error) {
+                console.error("Login API call failed, falling back to mock data:", error);
+                // Fallback to mock data if API fails
+                const foundUser = mockUsers.find(
+                    (u) => u.USERID === parseInt(userId) && u.BADGENUMBER === badgeNumber
+                );
+                if (foundUser) {
+                    setUser(foundUser);
+                    localStorage.setItem('dtr_user', JSON.stringify(foundUser));
+                    return { success: true, user: foundUser, fallback: true };
+                } else {
+                    return { success: false, message: 'Invalid User ID or Badge Number (mock data fallback failed)' };
+                }
+            } finally {
                 setLoading(false);
-              }, 500);
-            });
+            }
           };
 
           const logout = () => {
@@ -445,523 +380,6 @@
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200 print:bg-white">
-                        {logs.map((day, index) => {
-                          const dateObj = new Date(day.date); // Convert date string back to Date object
-                          const dayOfWeek = dateObj.getDay(); // 0 for Sunday, 6 for Saturday
-
-                          let isWeekendClass = '';
-                          let remarksForDisplay = day.remarks;
-
-                          if (dayOfWeek === 6) { // Saturday
-                            isWeekendClass = 'bg-yellow-100 print:bg-yellow-50'; // Light yellow for Saturday
-                            if (remarksForDisplay === 'N/A' || !remarksForDisplay) { // Handle empty remarks too
-                                remarksForDisplay = 'Saturday';
-                            } else if (!remarksForDisplay.includes('Saturday')) { // Avoid duplicating if already present
-                                remarksForDisplay = `Saturday; ${remarksForDisplay}`;
-                            }
-                          } else if (dayOfWeek === 0) { // Sunday
-                            isWeekendClass = 'bg-red-100 print:bg-red-50'; // Light red for Sunday
-                            if (remarksForDisplay === 'N/A' || !remarksForDisplay) { // Handle empty remarks too
-                                remarksForDisplay = 'Sunday';
-                            } else if (!remarksForDisplay.includes('Sunday')) { // Avoid duplicating if already present
-                                remarksForDisplay = `Sunday; ${remarksForDisplay}`;
-                            }
-                          }
-
-                          return (
-                            <tr key={index} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${isWeekendClass} print:border-b print:border-gray-200`}>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 print:text-gray-800">
-                                {day.date}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                {day.checkin1}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                {day.checkin2}
-                              </td>
-                              {isCategorizedView && (
-                                <>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    {day.checkin3}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    {day.checkin4}
-                                  </td>
-                                </>
-                              )}
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                {remarksForDisplay}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        };
-
-        // --- Helper Functions ---
-        const toDateString = (date) => date.toISOString().split('T')[0];
-
-        const parseTime = (timeStr) => {
-          const [hours, minutes, seconds] = timeStr.split(':').map(Number);
-          const date = new Date();
-          date.setHours(hours, minutes, seconds, 0);
-          return date;
-        };
-
-        // --- Dashboard Component (Dashboard.js equivalent) ---
-        const Dashboard = () => {
-          const { user, logout } = useAuth();
-          const [dailyLogs, setDailyLogs] = React.useState([]);
-          const [loadingLogs, setLoadingLogs] = React.useState(true);
-          // Set initial selectedFilter to 'today'
-          const [selectedFilter, setSelectedFilter] = React.useState('today');
-          const [isCategorizedView, setIsCategorizedView] = React.useState(true);
-          // Removed showPrintModal state
-          const [showPrintPreview, setShowPrintPreview] = React.useState(false);
-          const [logsForPrint, setLogsForPrint] = React.useState([]);
-          const [printTitle, setPrintTitle] = React.useState('');
-          // Removed pendingPrintMonth state
-
-
-          const getDateRange = (filter) => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            let startDate = new Date(); // Initialize with current date
-            let endDate = new Date();   // Initialize with current date
-
-            switch (filter) {
-              case 'today':
-                startDate.setHours(0, 0, 0, 0);
-                endDate.setHours(23, 59, 59, 999);
-                break;
-              case 'last2weeks':
-                startDate.setDate(today.getDate() - 13);
-                startDate.setHours(0, 0, 0, 0);
-                endDate.setHours(23, 59, 59, 999);
-                break;
-              case 'thisMonth':
-                startDate.setDate(1);
-                startDate.setHours(0, 0, 0, 0);
-                endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last day of current month
-                endDate.setHours(23, 59, 59, 999);
-                break;
-              case 'lastMonth':
-                startDate.setMonth(today.getMonth() - 1);
-                startDate.setDate(1);
-                startDate.setHours(0, 0, 0, 0);
-                endDate = new Date(today.getFullYear(), today.getMonth(), 0); // Last day of last month
-                endDate.setHours(23, 59, 59, 999);
-                break;
-              default: // Default to thisMonth if filter is unknown or not explicitly handled
-                startDate.setDate(1);
-                startDate.setHours(0, 0, 0, 0);
-                endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last day of current month
-                endDate.setHours(23, 59, 59, 999);
-                break;
-            }
-            return { startDate, endDate };
-          };
-
-          React.useEffect(() => {
-            if (user) {
-              setLoadingLogs(true);
-              let rangeStartDate, rangeEndDate;
-              let currentPrintTitle = '';
-
-              ({ startDate: rangeStartDate, endDate: rangeEndDate } = getDateRange(selectedFilter));
-              if (selectedFilter === 'thisMonth') {
-                  currentPrintTitle = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
-              } else if (selectedFilter === 'lastMonth') {
-                  const lastMonthDate = new Date();
-                  lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
-                  currentPrintTitle = lastMonthDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
-              } else if (selectedFilter === 'today') {
-                  currentPrintTitle = 'Today';
-              } else if (selectedFilter === 'last2weeks') {
-                  currentPrintTitle = 'Last 2 Weeks';
-              }
-              setPrintTitle(currentPrintTitle);
-
-              // Debugging log to show the exact date range being used
-              console.log(`Selected Filter: ${selectedFilter}`);
-              console.log(`Calculated Range: ${rangeStartDate.toLocaleDateString()} to ${rangeEndDate.toLocaleDateString()}`);
-
-
-              setTimeout(() => {
-                const userRawLogs = mockCheckinout.filter(log => log.USERID === user.USERID);
-
-                // Filter actual check-in/out logs to only include entries within the calculated range
-                const filteredUserLogs = userRawLogs.filter(log => {
-                  const logDate = new Date(log.CHECKTIME);
-                  // Set logDate to start of day for accurate comparison
-                  logDate.setHours(0, 0, 0, 0);
-                  return logDate >= rangeStartDate && logDate <= rangeEndDate;
-                });
-
-                // Generate all dates within the calculated range for a complete calendar display
-                const allDatesInRange = [];
-                let currentDateIterator = new Date(rangeStartDate);
-                while (currentDateIterator <= rangeEndDate) {
-                    allDatesInRange.push(toDateString(currentDateIterator));
-                    currentDateIterator.setDate(currentDateIterator.getDate() + 1);
-                }
-
-                const groupedLogs = filteredUserLogs.reduce((acc, log) => {
-                  const date = toDateString(new Date(log.CHECKTIME));
-                  if (!acc[date]) {
-                    acc[date] = [];
-                  }
-                  acc[date].push(log);
-                  return acc;
-                }, {});
-
-                // Process daily logs, including days with no entries
-                const processedDailyLogs = allDatesInRange.map(date => {
-                    const dailyEntries = groupedLogs[date] || []; // Get logs for this specific date, or an empty array
-                    dailyEntries.sort((a, b) => new Date(a.CHECKTIME) - new Date(b.CHECKTIME));
-
-                    let displayTimes = [];
-                    let remarks = dailyEntries.filter(log => log.Memoinfo).map(log => log.Memoinfo).join('; ') || '';
-
-                    const dateObj = new Date(date);
-                    const dayOfWeek = dateObj.getDay(); // 0 for Sunday, 6 for Saturday
-
-                    // Add weekend remarks if applicable
-                    if (dayOfWeek === 6) { // Saturday
-                        if (remarks === 'N/A' || !remarks) {
-                            remarks = 'Saturday';
-                        } else if (!remarks.includes('Saturday')) { // Avoid duplicating if already present
-                            remarks = `Saturday; ${remarks}`;
-                        }
-                    } else if (dayOfWeek === 0) { // Sunday
-                        if (remarks === 'N/A' || !remarks) {
-                            remarks = 'Sunday';
-                        } else if (!remarks.includes('Sunday')) { // Avoid duplicating if already present
-                            remarks = `Sunday; ${remarks}`;
-                        }
-                    }
-
-
-                    if (isCategorizedView) {
-                        let morningIn = '-';
-                        let morningOut = '-';
-                        let afternoonIn = '-';
-                        let afternoonOut = '-';
-
-                        const isWithinWindow = (logTime, windowType) => {
-                            const logTotalMinutes = logTime.getHours() * 60 + logTime.getMinutes();
-                            let lowerBoundMinutes, upperBoundMinutes;
-
-                            switch (windowType) {
-                                case 'morningIn':
-                                    lowerBoundMinutes = parseTime('06:00:00').getHours() * 60;
-                                    upperBoundMinutes = parseTime('10:00:00').getHours() * 60 + 59;
-                                    break;
-                                case 'morningOut':
-                                    lowerBoundMinutes = parseTime('10:00:00').getHours() * 60;
-                                    upperBoundMinutes = parseTime('14:00:00').getHours() * 60 + 59;
-                                    break;
-                                case 'afternoonIn':
-                                    lowerBoundMinutes = parseTime('11:00:00').getHours() * 60;
-                                    upperBoundMinutes = parseTime('15:00:00').getHours() * 60 + 59;
-                                    break;
-                                case 'afternoonOut':
-                                    lowerBoundMinutes = parseTime('15:00:00').getHours() * 60;
-                                    upperBoundMinutes = parseTime('19:00:00').getHours() * 60 + 59;
-                                    break;
-                                default:
-                                    return false;
-                            }
-                            return logTotalMinutes >= lowerBoundMinutes && logTotalMinutes <= upperBoundMinutes;
-                        };
-
-                        const usedLogIndices = new Set();
-
-                        dailyEntries.forEach((log, index) => {
-                            if (usedLogIndices.has(index)) return;
-
-                            const logTime = new Date(log.CHECKTIME);
-                            const formattedTime = logTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-
-                            if (log.CHECKTYPE === 'I') {
-                                if (morningIn === '-' && isWithinWindow(logTime, 'morningIn')) {
-                                    morningIn = formattedTime;
-                                    usedLogIndices.add(index);
-                                } else if (afternoonIn === '-' && isWithinWindow(logTime, 'afternoonIn')) {
-                                    afternoonIn = formattedTime;
-                                    usedLogIndices.add(index);
-                                }
-                            } else if (log.CHECKTYPE === 'O') {
-                                if (morningOut === '-' && isWithinWindow(logTime, 'morningOut')) {
-                                    morningOut = formattedTime;
-                                    usedLogIndices.add(index);
-                                } else if (afternoonOut === '-' && isWithinWindow(logTime, 'afternoonOut')) {
-                                    afternoonOut = formattedTime;
-                                    usedLogIndices.add(index);
-                                }
-                            }
-                        });
-
-                        const unassignedEntries = dailyEntries.filter((_, index) => !usedLogIndices.has(index));
-                        let unassignedIndex = 0;
-
-                        // Attempt to assign remaining entries to available slots
-                        if (morningIn === '-' && unassignedEntries[unassignedIndex]) {
-                            morningIn = new Date(unassignedEntries[unassignedIndex++].CHECKTIME).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                        }
-                        if (morningOut === '-' && unassignedEntries[unassignedIndex]) {
-                            morningOut = new Date(unassignedEntries[unassignedIndex++].CHECKTIME).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                        }
-                        if (afternoonIn === '-' && unassignedEntries[unassignedIndex]) {
-                            afternoonIn = new Date(unassignedEntries[unassignedIndex++].CHECKTIME).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                        }
-                        if (afternoonOut === '-' && unassignedEntries[unassignedIndex]) {
-                            afternoonOut = new Date(unassignedEntries[unassignedIndex++].CHECKTIME).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                        }
-
-                        displayTimes = [morningIn, morningOut, afternoonIn, afternoonOut];
-
-                    } else { // Raw Logs View
-                        let amLogs = [];
-                        let pmLogs = [];
-
-                        dailyEntries.forEach(log => {
-                            const logTime = new Date(log.CHECKTIME);
-                            const formattedTime = logTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                            const hour = logTime.getHours();
-
-                            if (hour < 12) {
-                                amLogs.push(formattedTime);
-                            } else {
-                                pmLogs.push(formattedTime);
-                            }
-                        });
-
-                        displayTimes = [
-                            amLogs.length > 0 ? amLogs.join(', ') : '-',
-                            pmLogs.length > 0 ? pmLogs.join(', ') : '-',
-                            '-',
-                            '-'
-                        ];
-
-                        const defaultShift = mockSchClass.find(s => s.schClassid === 1);
-                        if (defaultShift) {
-                            remarks = `Shift: ${defaultShift.schName}` + (remarks ? `; ${remarks}` : '');
-                        }
-                    }
-
-                    if (!remarks) {
-                        remarks = 'N/A';
-                    }
-
-                    return {
-                        date: new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-                        checkin1: displayTimes[0],
-                        checkin2: displayTimes[1],
-                        checkin3: displayTimes[2],
-                        checkin4: displayTimes[3],
-                        remarks: remarks,
-                    };
-                }).sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort in ascending order
-
-                setDailyLogs(processedDailyLogs);
-                setLoadingLogs(false);
-
-              }, 700);
-            }
-          }, [user, selectedFilter, isCategorizedView]); // Removed pendingPrintMonth from dependencies
-
-          if (!user) {
-            return <p className="text-center text-red-500 mt-10">Please log in to view your DTR logs.</p>;
-          }
-
-          const filterButtonClass = (filterName) =>
-            `py-2 px-4 rounded-full text-sm font-medium transition duration-150 ease-in-out shadow-md ${
-              selectedFilter === filterName
-                ? 'bg-indigo-600 text-white transform scale-105'
-                : 'bg-indigo-50/10 text-indigo-700 hover:bg-indigo-50/20'
-            }`;
-
-          const handleFilterButtonClick = (filterName) => {
-            setSelectedFilter(filterName);
-          };
-
-          const handleDirectPrint = () => {
-            // Set logsForPrint and printTitle based on current state
-            setLogsForPrint(dailyLogs);
-            setPrintTitle(printTitle); // printTitle is already updated by useEffect
-            setShowPrintPreview(true);
-          };
-
-          if (showPrintPreview) {
-            return (
-              <PrintPreview
-                logs={logsForPrint}
-                monthTitle={printTitle}
-                isCategorizedView={isCategorizedView}
-                onClose={() => {
-                  setShowPrintPreview(false);
-                  setPrintTitle('');
-                  setLogsForPrint([]);
-                }}
-                user={user}
-              />
-            );
-          }
-
-          return (
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 lg:p-8">
-              <div className="max-w-6xl mx-auto bg-white/90 backdrop-blur-sm p-8 rounded-xl shadow-2xl">
-                {/* Attractive Header Section for User Info and Logout */}
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4 p-6 bg-indigo-100/70 rounded-xl shadow-lg border border-indigo-200">
-                  <div className="flex items-center space-x-4">
-                    {user.PHOTO && (
-                      <img
-                        src={user.PHOTO}
-                        alt={`${user.NAME}'s photo`}
-                        className="w-20 h-20 rounded-full object-cover shadow-lg border-2 border-indigo-300"
-                        onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/60x60/CCCCCC/000000?text=N/A"; }}
-                      />
-                    )}
-                    <div>
-                      <h2 className="text-3xl sm:text-4xl font-extrabold text-indigo-800">
-                        Welcome, {user.NAME}!
-                      </h2>
-                      <p className="text-gray-700 text-sm sm:text-base">Badge: {user.BADGENUMBER} | Dept: {mockDepartments.find(d => d.DEPTID === user.DEFAULTDEPTID)?.DEPTNAME || 'N/A'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4"> {/* Container for print and logout */}
-                    <button
-                      onClick={logout}
-                      className="py-2 px-6 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-full shadow-md transition-all duration-300 ease-in-out transform hover:scale-105"
-                    >
-                      Logout
-                    </button>
-                  </div>
-                </div>
-
-                <h3 className="text-2xl font-bold text-gray-800 mb-6">Attendance Check-in/out Checker</h3>
-
-                {/* Combined Date Filters and View Mode Toggle */}
-                <div className="mb-6 flex flex-col lg:flex-row lg:justify-between items-center gap-4 p-4 bg-indigo-50/50 rounded-lg shadow-inner">
-                  {/* Quick Date Filters */}
-                  <div className="flex flex-wrap justify-center lg:justify-start gap-3">
-                    <button
-                      onClick={() => handleFilterButtonClick('today')}
-                      className={filterButtonClass('today')}
-                    >
-                      Today
-                    </button>
-                    <button
-                      onClick={() => handleFilterButtonClick('last2weeks')}
-                      className={filterButtonClass('last2weeks')}
-                    >
-                      Last 2 Weeks
-                    </button>
-                    <button
-                      onClick={() => handleFilterButtonClick('thisMonth')}
-                      className={filterButtonClass('thisMonth')}
-                    >
-                      This Month
-                    </button>
-                    <button
-                      onClick={() => handleFilterButtonClick('lastMonth')}
-                      className={filterButtonClass('lastMonth')}
-                    >
-                      Last Month
-                    </button>
-                  </div>
-
-                  {/* View Mode Toggle and Print Button */}
-                  <div className="flex items-center justify-center lg:justify-end space-x-3 mt-4 lg:mt-0">
-                    <span className="text-base font-medium text-gray-700">View Mode:</span>
-                    <button
-                      onClick={() => setIsCategorizedView(true)}
-                      className={`py-2 px-5 rounded-full text-sm font-semibold transition duration-150 ease-in-out shadow-md ${
-                        isCategorizedView
-                          ? 'bg-blue-600 text-white transform scale-105'
-                          : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                      }`}
-                    >
-                      Shift Schedule
-                    </button>
-                    <button
-                      onClick={() => setIsCategorizedView(false)}
-                      className={`py-2 px-5 rounded-full text-sm font-semibold transition duration-150 ease-in-out shadow-md ${
-                        !isCategorizedView
-                          ? 'bg-blue-600 text-white transform scale-105'
-                          : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                      }`}
-                    >
-                      Raw Logs
-                    </button>
-                    {/* Print button with new printer icon */}
-                    <button
-                      onClick={handleDirectPrint} // Changed to direct print handler
-                      className="p-3 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg transition-all duration-300 ease-in-out transform hover:scale-110"
-                      title="Print Logs"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor"><path d="M720-480v-240H240v240h-80v-320h640v320h-80Zm-480 80h480v-160H240v160Zm-80 240v-80h640v80H160Zm0-560v-80h640v80H160Zm80 240v-80h480v80H240Zm480 240v-80h80v80h-80Zm-560 0v-80h80v80h-80Zm480-240H240h480ZM240-320v-160v160Z"/></svg>
-                    </button>
-                  </div>
-                </div>
-
-                {loadingLogs ? (
-                  <div className="flex justify-center items-center py-10">
-                    <svg className="animate-spin h-10 w-10 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span className="ml-3 text-lg text-gray-600">Loading logs...</span>
-                  </div>
-                ) : dailyLogs.length === 0 ? (
-                  <p className="text-center text-gray-600 py-10 text-lg">No daily check-in/out records found for your account within the selected date range.</p>
-                ) : (
-                  <div className="overflow-x-auto rounded-lg shadow-lg">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-indigo-50">
-                        <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                            Calendar Date
-                          </th>
-                          {isCategorizedView ? (
-                            <>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                                Morning In
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                                Morning Out
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                                Afternoon In
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                                Afternoon Out
-                              </th>
-                            </>
-                          ) : (
-                            <>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                                AM Logs
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                                PM Logs
-                              </th>
-                            </>
-                          )}
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                            Remarks
-                          </th>
-                        </tr>
-                      </thead>
                       <tbody className="bg-white divide-y divide-gray-100">
                         {dailyLogs.map((day, index) => (
                           <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50 hover:bg-indigo-50 transition-colors duration-150'}>
@@ -994,7 +412,6 @@
                   </div>
                 )}
               </div>
-              {/* PrintModal component is removed */}
             </div>
           );
         };
