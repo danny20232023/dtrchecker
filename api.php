@@ -23,7 +23,7 @@ function connectToMssql($config) {
             "Uid" => $config['user'],
             "PWD" => $config['password'],
             "Encrypt" => $config['options']['encrypt'],
-            "TrustServerCertificate" => $config['options']['trustServerCertificate']
+            // "TrustServerCertificate" => $config['options']['trustServerCertificate']
         );
 
         $conn = sqlsrv_connect($serverName, $connectionOptions);
@@ -59,7 +59,7 @@ if ($requestMethod === 'GET') {
         if ($apiPath === '/api/users') {
             // API to get all users (for login validation)
             try {
-                // IMPORTANT: Adjust table and column names (USERINFO, USERID, BADGENUMBER, NAME, PASSWORD, DEFAULTDEPTID, PHOTO)
+                // IMPORTANT: Adjust table and column names (T_USER, USERID, BADGENUMBER, NAME, PASSWORD, DEFAULTDEPTID, PHOTO)
                 // to match your actual MSSQL schema.
                 $sql = "SELECT USERID, BADGENUMBER, NAME, PASSWORD, DEFAULTDEPTID, PHOTO FROM USERINFO";
                 $stmt = sqlsrv_query($conn, $sql);
