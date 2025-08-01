@@ -1,23 +1,37 @@
 {
-  "name": "dtr-checker-backend",
+  "name": "dtr-checker-typescript",
   "version": "1.0.0",
-  "description": "Backend for DTR Checker application to connect to MSSQL",
-  "main": "server.js",
+  "description": "DTR Checker application with TypeScript and React",
+  "main": "dist/main.js",
   "scripts": {
-    "start": "npx serve public -s -l 5000"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "start": "npm run build && node server.js"
   },
   "keywords": [
-    "node",
-    "express",
-    "mssql",
-    "dtr"
+    "typescript",
+    "react",
+    "dtr",
+    "attendance"
   ],
   "author": "Your Name",
   "license": "ISC",
   "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^4.19.2",
-    "mssql": "^11.0.0",
-    "serve": "^14.2.4"
+    "express": "^5.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "typescript": "^5.9.2",
+    "vite": "^5.4.19"
   }
 }

@@ -5,10 +5,11 @@ run = "npm run start"
 channel = "stable-25_05"
 
 [deployment]
-run = ["sh", "-c", "php -S 0.0.0.0:5000 index.php"]
+run = ["sh", "-c", "node server.js"]
+build = ["sh", "-c", "npm run build"]
 
 [workflows]
-runButton = "PHP Server"
+runButton = "TypeScript Build & Serve"
 
 [[workflows.workflow]]
 name = "Start Frontend"
@@ -27,6 +28,19 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "php -S 0.0.0.0:5000 index.php"
+
+[[workflows.workflow]]
+name = "TypeScript Build & Serve"
+author = 45450346
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run build"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server.js"
 
 [[ports]]
 localPort = 5000
