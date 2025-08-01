@@ -4,7 +4,7 @@
   "description": "Backend for DTR Checker application to connect to MSSQL",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "npx serve public -s -l 5000"
   },
   "keywords": [
     "node",
@@ -17,6 +17,7 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.19.2",
-    "mssql": "^11.0.0"
+    "mssql": "^11.0.0",
+    "serve": "^14.2.4"
   }
 }
