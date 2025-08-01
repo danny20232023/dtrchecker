@@ -1,8 +1,5 @@
-Update API base URL to a relative path for better compatibility in production hosting.
-```
-```replit_final_file
-sdfsdfsdf
-// public/js/AuthContext.js
+
+// public/AuthContext.js
 import React from 'https://unpkg.com/react@18/umd/react.development.js';
 import { mockUsers } from './mockData.js'; // Import mock users for fallback
 
@@ -77,4 +74,3 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
   return React.useContext(AuthContext);
 };
-`

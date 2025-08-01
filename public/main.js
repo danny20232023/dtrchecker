@@ -1,9 +1,8 @@
-
-// public/js/main.js
+// public/main.js
 import React from 'https://unpkg.com/react@18/umd/react.development.js';
 import ReactDOM from 'https://unpkg.com/react-dom@18/umd/react-dom.development.js';
 import { AuthProvider, useAuth } from './AuthContext.js';
-import { Login } from './Login.js';
+import { Login } from './login.js';
 import { Dashboard } from './Dashboard.js';
 
 // Main AppContent component to handle routing based on authentication

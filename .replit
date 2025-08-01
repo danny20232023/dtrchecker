@@ -8,7 +8,7 @@ channel = "stable-25_05"
 run = ["sh", "-c", "php -S 0.0.0.0:5000 index.php"]
 
 [workflows]
-runButton = "Start Frontend"
+runButton = "PHP Server"
 
 [[workflows.workflow]]
 name = "Start Frontend"
@@ -18,6 +18,15 @@ mode = "sequential"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm start"
+
+[[workflows.workflow]]
+name = "PHP Server"
+author = 45450346
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "php -S 0.0.0.0:5000 index.php"
 
 [[ports]]
 localPort = 5000
