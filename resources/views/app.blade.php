@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <title>{{ config('app.name', 'Laravel') }} - DTR Checker</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800&display=swap" rel="stylesheet" />
+
+    <!-- Vite CSS and JS for your React app -->
+    @viteReactRefresh
+    @vite('resources/js/dtr-checker-frontend/src/index.js')
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Print-specific styles */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact; /* For Webkit browsers */
+                print-color-adjust: exact; /* Standard */
+            }
+            .print\:hidden {
+                display: none !important;
+            }
+            .print\:block {
+                display: block !important;
+            }
+            .print\:mb-4 {
+                margin-bottom: 1rem !important;
+            }
+            .print\:text-xl {
+                font-size: 1.25rem !important;
+            }
+            .print\:font-semibold {
+                font-weight: 600 !important;
+            }
+            .print\:text-gray-700 {
+                color: #4a5568 !important; /* Tailwind gray-700 */
+            }
+            .print\:font-bold {
+                font-weight: 700 !important;
+            }
+            .print\:bg-gray-100 {
+                background-color: #f7fafc !important; /* Tailwind gray-100 */
+            }
+            .print\:border {
+                border-width: 1px !important;
+            }
+            .print\:border-gray-300 {
+                border-color: #cbd5e0 !important; /* Tailwind gray-300 */
+            }
+            .print\:bg-white {
+                background-color: #ffffff !important;
+            }
+            .print\:border-b {
+                border-bottom-width: 1px !important;
+            }
+            .print\:border-gray-200 {
+                border-color: #edf2f7 !important; /* Tailwind gray-200 */
+            }
+            .print\:w-12 {
+                width: 3rem !important;
+            }
+            .print\:h-12 {
+                height: 3rem !important;
+            }
+            .print\:rounded-full {
+                border-radius: 9999px !important;
+            }
+            .print\:float-left {
+                float: left !important;
+            }
+            .print\:mr-4 {
+                margin-right: 1rem !important;
+            }
+            .print\:overflow-hidden {
+                overflow: hidden !important;
+            }
+            .print\:text-sm {
+                font-size: 0.875rem !important;
+            }
+            .print\:bg-yellow-50 {
+                background-color: #fffbeb !important; /* Tailwind yellow-50 */
+            }
+            .print\:bg-red-50 {
+                background-color: #fff5f5 !important; /* Tailwind red-50 */
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div id="root"></div>
+</body>
+</html>
